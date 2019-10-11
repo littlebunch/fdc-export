@@ -20,7 +20,8 @@ var (
 	o   = flag.String("o", "", "Output json file")
 	t   = flag.String("t", "", "Export document type")
 	s   = flag.Int64("s", 0, "Document offset to begin export.  Defaults to 0")
-	m   = flag.Int64("m", 5000, "Max number of documents to export. Defaults to 5000")
+	n   = flag.Int64("n", 0, "Total number of exports to export.")
+	m   = flag.Int64("m", 5000, "Max number of documents per scan. Defaults to 5000")
 	cnt = 0
 	cs  fdc.Config
 )
@@ -30,7 +31,6 @@ func init() {
 		err   error
 		lfile *os.File
 	)
-
 	lfile, err = os.OpenFile(*l, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalln("Failed to open log file", *l, ":", err)
@@ -40,13 +40,13 @@ func init() {
 }
 
 func main() {
-
 	log.Print("Starting export")
 	flag.Parse()
 	var dt fdc.DocType
 	dtype := dt.ToDocType(*t)
 	if dtype == 999 {
 		log.Fatalln("Valid t option is required")
+		os.Exit(1)
 	}
 
 	var (
@@ -58,22 +58,24 @@ func main() {
 	ds = &cb
 	if err := ds.ConnectDs(cs); err != nil {
 		log.Fatalln("Cannot connect to datastore ", err)
+		os.Exit(1)
 	}
 	// implement the Ingest interface
 	if dtype == fdc.FOOD || dtype == fdc.NUTDATA {
-		err := exportData(*o, ds, dtype, *s, *m)
+		err := exportData(*o, ds, dtype, *s, *m, *n)
 		if err != nil {
-			fmt.Printf("Error on export: %v\n", err)
+			log.Printf("Error on export: %v\n", err)
 		}
 	} else {
-		fmt.Println("Invalid t option -- must be FOOD or NUTDATA")
+		log.Println("Invalid t option -- must be FOOD or NUTDATA")
+		os.Exit(1)
 	}
 
 	log.Println("Finished.")
 	ds.CloseDs()
 	os.Exit(0)
 }
-func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max int64) error {
+func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max int64, n int64) error {
 	f, err := os.Create(ofile)
 	var (
 		foods []interface{}
@@ -83,17 +85,16 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max
 	}
 	defer f.Close()
 	where := fmt.Sprintf("type=\"%s\" ", dt.ToString(dt))
-	start = 0
 
 	for {
-
 		food, err := dc.Browse(cs.CouchDb.Bucket, where, start, max, "fdcId", "asc")
 		if err != nil {
-			fmt.Printf("%v\n", err)
-			//return err
+			log.Printf("%v\n", err)
 		}
-		fmt.Println("len = ", len(food))
+		log.Println("Processed = ", len(food), " documents.")
 		if len(food) == 0 {
+			break
+		} else if n > 0 && start >= n {
 			break
 		}
 		for fd := range food {
@@ -103,7 +104,7 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max
 
 	}
 	b, err := json.Marshal(foods)
-	n, err := f.Write(b)
-	fmt.Printf("Wrote %d bytes with %v\n", n, err)
+	nb, err := f.Write(b)
+	log.Printf("Wrote %d bytes.\n", nb)
 	return err
 }
