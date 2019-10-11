@@ -23,13 +23,17 @@ You should now be ready to build or run an executable.
 ```
 go run exporter.go
 ```
-Options:   
-Required:     
-```-o <outfile.json>```
-DOCTYPE can be one of FOOD, NUTDATA, or NUT:   
-```-t <DOCTYPE`>``
+### Options   
+Required:          
+```
+-o <outfile.json>
+```
+```
+-t <DOCTYPE`> //DOCTYPE can be one of FOOD, NUTDATA, or NUT
+```     
 Optional:
-```-s <offset> //Document offset to begin scan, default is 0
+```
+-s <offset> //Document offset to begin scan, default is 0
 ```
 ```
 -n <export number> // Maximum # of docs to export, if not specified all docs will be written
