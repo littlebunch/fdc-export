@@ -21,10 +21,11 @@ var (
 	t   = flag.String("t", "", "Export document type")
 	s   = flag.Int64("s", 0, "Document offset to begin export.  Defaults to 0")
 	n   = flag.Int64("n", 0, "Total number of exports to export.")
-	m   = flag.Int64("m", 5000, "Max number of documents per scan. Defaults to 5000")
 	cnt = 0
 	cs  fdc.Config
 )
+
+const MAX_SCAN_SIZE = 5000
 
 func init() {
 	var (
@@ -62,7 +63,7 @@ func main() {
 	}
 	// implement the Ingest interface
 	if dtype == fdc.FOOD || dtype == fdc.NUTDATA {
-		err := exportData(*o, ds, dtype, *s, *m, *n)
+		err := exportData(*o, ds, dtype, *s, *n)
 		if err != nil {
 			log.Printf("Error on export: %v\n", err)
 		}
@@ -75,17 +76,22 @@ func main() {
 	ds.CloseDs()
 	os.Exit(0)
 }
-func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max int64, n int64) error {
-	f, err := os.Create(ofile)
+func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n int64) error {
 	var (
 		foods []interface{}
+		max   int64
 	)
+	f, err := os.Create(ofile)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 	where := fmt.Sprintf("type=\"%s\" ", dt.ToString(dt))
-
+	if n > 0 && n < MAX_SCAN_SIZE {
+		max = n
+	} else {
+		max = MAX_SCAN_SIZE
+	}
 	for {
 		food, err := dc.Browse(cs.CouchDb.Bucket, where, start, max, "fdcId", "asc")
 		if err != nil {
@@ -94,13 +100,21 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, max
 		log.Println("Processed = ", len(food), " documents.")
 		if len(food) == 0 {
 			break
-		} else if n > 0 && start >= n {
-			break
 		}
 		for fd := range food {
 			foods = append(foods, food[fd])
 		}
+
 		start += max
+		if n > 0 {
+			if start >= n {
+				break
+			}
+			if n < start {
+				max -= (start - n)
+			}
+
+		}
 
 	}
 	b, err := json.Marshal(foods)
