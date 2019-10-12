@@ -63,9 +63,11 @@ func main() {
 	}
 	// implement the Ingest interface
 	if dtype == fdc.FOOD || dtype == fdc.NUTDATA {
-		err := exportData(*o, ds, dtype, *s, *n)
+		cnt, err := exportData(*o, ds, dtype, *s, *n)
 		if err != nil {
 			log.Printf("Error on export: %v\n", err)
+		} else {
+			log.Printf("Documents exported %d\n", cnt)
 		}
 	} else {
 		log.Println("Invalid t option -- must be FOOD or NUTDATA")
@@ -76,14 +78,15 @@ func main() {
 	ds.CloseDs()
 	os.Exit(0)
 }
-func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n int64) error {
+func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n int64) (int64, error) {
 	var (
-		foods []interface{}
-		max   int64
+		foods    []interface{}
+		max, cnt int64
 	)
+	cnt = 0
 	f, err := os.Create(ofile)
 	if err != nil {
-		return err
+		return cnt, err
 	}
 	defer f.Close()
 	where := fmt.Sprintf("type=\"%s\" ", dt.ToString(dt))
@@ -103,15 +106,15 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n i
 		}
 		for fd := range food {
 			foods = append(foods, food[fd])
+			cnt++
 		}
-
 		start += max
 		if n > 0 {
 			if start >= n {
 				break
 			}
-			if n < start {
-				max -= (start - n)
+			if n < (start + max) {
+				max = n - max*(start/max)
 			}
 
 		}
@@ -119,6 +122,6 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n i
 	}
 	b, err := json.Marshal(foods)
 	nb, err := f.Write(b)
-	log.Printf("Wrote %d bytes.\n", nb)
-	return err
+	log.Println(nb, " bytes written.")
+	return cnt, err
 }
