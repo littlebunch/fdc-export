@@ -17,7 +17,7 @@ import (
 var (
 	c   = flag.String("c", "config.yml", "YAML Config file")
 	l   = flag.String("l", "/tmp/export.out", "send log output to this file -- defaults to /tmp/ingest.out")
-	o   = flag.String("o", "", "Output json file")
+	o   = flag.String("o", "out.json", "Output json file")
 	t   = flag.String("t", "", "Export document type")
 	s   = flag.Int64("s", 0, "Document offset to begin export.  Defaults to 0")
 	n   = flag.Int64("n", 0, "Total number of exports to export.")
