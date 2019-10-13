@@ -25,7 +25,8 @@ var (
 	cs  fdc.Config
 )
 
-const MAX_SCAN_SIZE = 5000
+//
+const max_scan_size = 5000
 
 func init() {
 	var (
@@ -90,10 +91,10 @@ func exportData(ofile string, dc ds.DataSource, dt fdc.DocType, start int64, n i
 	}
 	defer f.Close()
 	where := fmt.Sprintf("type=\"%s\" ", dt.ToString(dt))
-	if n > 0 && n < MAX_SCAN_SIZE {
+	if n > 0 && n < max_scan_size {
 		max = n
 	} else {
-		max = MAX_SCAN_SIZE
+		max = max_scan_size
 	}
 	for {
 		food, err := dc.Browse(cs.CouchDb.Bucket, where, start, max, "fdcId", "asc")
